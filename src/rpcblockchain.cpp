@@ -185,6 +185,47 @@ Value getblock(const Array& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
+
+Value getblocktransactions(const json_spirit::Array& params, bool fHelp)
+{
+
+  Object result;
+
+  if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "getblocktransactions <hash>\n"
+            "Returns an Object with information about block <hash> and its transactions."
+        );
+
+    std::string strHash = params[0].get_str();
+    uint256 hash(strHash);
+
+    if (mapBlockIndex.count(hash) == 0)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+
+    CBlock block;
+    CBlockIndex* pblockindex = mapBlockIndex[hash];
+    ReadBlockFromDisk(block, pblockindex);
+
+    Object block_json = blockToJSON(block, pblockindex);
+    Array txs;
+
+    BOOST_FOREACH(const CTransaction&tx, block.vtx) {
+      Object tx_json;
+      CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+      ssTx << tx;
+      string strHex = HexStr(ssTx.begin(), ssTx.end());
+
+      tx_json.push_back(Pair("hex", strHex));
+      TxToJSON(tx, hash, tx_json);
+      txs.push_back(tx_json);
+    }
+
+  result.push_back(Pair("block", block_json));
+  result.push_back(Pair("txs", txs));
+  return result;
+}
+
 Value gettxoutsetinfo(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
